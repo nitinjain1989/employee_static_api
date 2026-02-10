@@ -1,20 +1,16 @@
 package models
 
-type Location struct {
-	City    string `json:"city"`
-	Country string `json:"country"`
-}
-
 type Employee struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Designation string   `json:"designation"`
-	Department  string   `json:"department"`
-	IsActive    bool     `json:"is_active"`
-	ImgURL      string   `json:"img_url"`
-	Email       string   `json:"email"`
-	Location    Location `json:"location"`
-	JoiningDate string   `json:"joining_date"`
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name"`
+	Designation string `json:"designation"`
+	Department  string `json:"department"`
+	IsActive    bool   `json:"is_active"`
+	ImgURL      string `json:"img_url"`
+	Email       string `json:"email"`
+	City        string `json:"city"`
+	Country     string `json:"country"`
+	JoiningDate string `json:"joining_date"`
 }
 
 type EmployeeData struct {

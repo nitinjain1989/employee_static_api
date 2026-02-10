@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"static-api/config"
 	"static-api/models"
@@ -66,7 +67,8 @@ func CreateEmployee(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		http.Error(w, "Failed to insert employee", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		http.Error(w, string(body), resp.StatusCode)
 		return
 	}
 
