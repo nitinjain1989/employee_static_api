@@ -10,20 +10,26 @@ import (
 func GetEmployees(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	client := config.NewSupabaseClient()
-
-	var employees []models.Employee
-	err := client.DB.
-		From("employees").
-		Select("*").
-		Execute(&employees)
-
+	req, err := config.NewSupabaseRequest("GET", "/employees", nil)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
-	response := models.APIResponse{
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer resp.Body.Close()
+
+	var employees []models.Employee
+	if err := json.NewDecoder(resp.Body).Decode(&employees); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	json.NewEncoder(w).Encode(models.APIResponse{
 		Status:  "success",
 		Message: "Employees fetched successfully",
 		Data: models.EmployeeData{
@@ -32,9 +38,7 @@ func GetEmployees(w http.ResponseWriter, r *http.Request) {
 		Meta: models.Meta{
 			TotalCount: len(employees),
 		},
-	}
-
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
 func CreateEmployee(w http.ResponseWriter, r *http.Request) {
@@ -46,15 +50,23 @@ func CreateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := config.NewSupabaseClient()
+	body, _ := json.Marshal(emp)
 
-	_, err := client.DB.
-		From("employees").
-		Insert(emp).
-		Execute(nil)
-
+	req, err := config.NewSupabaseRequest("POST", "/employees", body)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		http.Error(w, "Failed to insert employee", resp.StatusCode)
 		return
 	}
 

@@ -14,5 +14,6 @@ func NewSupabaseClient() *supabase.Client {
 	if err != nil {
 		panic(err)
 	}
+
 	return client
 }
