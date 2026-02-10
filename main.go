@@ -14,7 +14,9 @@ func main() {
 		port = "8080"
 	}
 
+	http.Handle("/", http.FileServer(http.Dir("./public")))
 	http.HandleFunc("/employees", handlers.GetEmployees)
+	http.HandleFunc("/employees/create", handlers.CreateEmployee)
 	log.Println("Server started on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h2>Add Employee</h2>
+
+<form id="form">
+    <input placeholder="Name" id="name" />
+    <input placeholder="Email" id="email" />
+    <button type="submit">Add</button>
+</form>
+
+<script>
+    document.getElementById("form").onsubmit = async (e) => {
+        e.preventDefault();
+
+        await fetch("/employees/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: name.value,
+                email: email.value,
+                designation: "Engineer",
+                department: "Engineering"
+            })
+        });
+
+        alert("Employee added");
+    };
+</script>
+</body>
+</html>
