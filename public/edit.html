@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Edit Employee</title>
+</head>
+<body>
+
+<h2>Edit Employee</h2>
+
+<form id="editForm">
+  <input type="text" id="name" placeholder="Name" required />
+  <input type="text" id="designation" placeholder="Designation" />
+  <input type="text" id="department" placeholder="Department" />
+  <input type="email" id="email" placeholder="Email" required />
+  <button type="submit">Update</button>
+</form>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get("id");
+
+  async function loadEmployee() {
+    const response = await fetch("/employees");
+    const result = await response.json();
+
+    const employee = result.data.employees.find(e => e.id === id);
+
+    if (!employee) return;
+
+    document.getElementById("name").value = employee.name;
+    document.getElementById("designation").value = employee.designation;
+    document.getElementById("department").value = employee.department;
+    document.getElementById("email").value = employee.email;
+  }
+
+  document.getElementById("editForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const data = {
+      name: document.getElementById("name").value,
+      designation: document.getElementById("designation").value,
+      department: document.getElementById("department").value,
+      email: document.getElementById("email").value,
+      joining_date: document.getElementById("joining_date").value
+    };
+
+    const response = await fetch(`/employees/update?id=${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if (response.ok) {
+      alert("Employee updated!");
+      window.location.href = "index.html";
+    } else {
+      const text = await response.text();
+      alert("Update failed: " + text);
+    }
+  });
+
+  loadEmployee();
+</script>
+
+</body>
+</html>

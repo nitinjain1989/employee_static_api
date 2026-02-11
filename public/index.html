@@ -1,104 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8" />
-    <title>Add Employee</title>
+    <title>Employees</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-        }
-        .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-        }
-        input, select, button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-        }
-        button {
-            background: #2563eb;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #1e40af;
-        }
+        body { font-family: Arial; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: auto; padding: 20px; }
+        button { padding: 10px 15px; background: #2563eb; color: white; border: none; cursor: pointer; }
+        table { width: 100%; margin-top: 20px; border-collapse: collapse; background: white; }
+        th, td { padding: 10px; border: 1px solid #ddd; }
+        img { width: 50px; height: 50px; border-radius: 50%; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Add Employee</h2>
+    <h2>All Employees</h2>
 
-    <form id="employeeForm">
-        <input type="text" id="name" placeholder="Name *" required />
+    <button onclick="window.location.href='add.html'">
+        + Add Employee
+    </button>
 
-        <input type="text" id="designation" placeholder="Designation" />
-
-        <input type="text" id="department" placeholder="Department" />
-
-        <select id="is_active">
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-        </select>
-
-        <input type="text" id="img_url" placeholder="Image URL" />
-
-        <input type="email" id="email" placeholder="Email *" required />
-
-        <input type="text" id="city" placeholder="City" />
-
-        <input type="text" id="country" placeholder="Country" />
-
-        <input type="date" id="joining_date" />
-
-        <button type="submit">Submit</button>
-    </form>
-
-    <p id="message"></p>
+    <table id="employeeTable">
+        <thead>
+        <tr>
+            <th>Image</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Designation</th>
+            <th>Department</th>
+            <th>City</th>
+            <th>Status</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 </div>
 
-<script>
-    document.getElementById("employeeForm").addEventListener("submit", async function (e) {
-        e.preventDefault();
-
-        const data = {
-            name: document.getElementById("name").value,
-            designation: document.getElementById("designation").value,
-            department: document.getElementById("department").value,
-            is_active: document.getElementById("is_active").value === "true",
-            img_url: document.getElementById("img_url").value,
-            email: document.getElementById("email").value,
-            city: document.getElementById("city").value,
-            country: document.getElementById("country").value,
-            joining_date: document.getElementById("joining_date").value
-        };
-
-        const response = await fetch("/employees/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-        });
-
-        const message = document.getElementById("message");
-
-        if (response.ok) {
-            message.innerText = "✅ Employee added successfully";
-            message.style.color = "green";
-            this.reset();
-        } else {
-            const text = await response.text();
-            message.innerText = "❌ Error: " + text;
-            message.style.color = "red";
-        }
-    });
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>

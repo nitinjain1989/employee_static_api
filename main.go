@@ -17,6 +17,7 @@ func main() {
 	// API routes
 	http.HandleFunc("/employees", handlers.GetEmployees)
 	http.HandleFunc("/employees/create", handlers.CreateEmployee)
+	http.HandleFunc("/employees/update", handlers.UpdateEmployee)
 
 	// Absolute path fix (IMPORTANT)
 	publicPath, err := filepath.Abs("public")

@@ -1,13 +1,8 @@
 package data
 
-import (
-	"fmt"
-	"static-api/models"
-)
+//var Employees = generateEmployees()
 
-var Employees = generateEmployees()
-
-func generateEmployees() []models.Employee {
+/*func generateEmployees() []models.Employee {
 	employees := make([]models.Employee, 0, 100)
 
 	for i := 1; i <= 100; i++ {
@@ -30,4 +25,4 @@ func generateEmployees() []models.Employee {
 	}
 
 	return employees
-}
+}*/
