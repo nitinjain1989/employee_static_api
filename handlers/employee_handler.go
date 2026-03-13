@@ -11,7 +11,17 @@ import (
 func GetEmployees(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	req, err := config.NewSupabaseRequest("GET", "/employees?order=created_at.desc", nil)
+	queries := r.URL.Query()
+	limit := queries.Get("limit")
+	offset := queries.Get("offset")
+	path := "/employees?order=created_at.desc"
+	if limit != "" {
+		path += "&limit=" + limit
+	}
+	if offset != "" {
+		path += "&offset=" + offset
+	}
+	req, err := config.NewSupabaseRequest("GET", path, nil)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
