@@ -14,7 +14,7 @@ func GetEmployees(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	limit := queries.Get("limit")
 	offset := queries.Get("offset")
-	path := "/employees?order=created_at.desc"
+	path := "/employees?select=*&order=created_at.desc,id.desc"
 	if limit != "" {
 		path += "&limit=" + limit
 	}
