@@ -6,8 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"static-api/handlers"
+
+	"github.com/joho/godotenv"
 )
 
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found")
+	}
+}
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {

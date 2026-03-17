@@ -16,6 +16,10 @@ func NewSupabaseRequest(method, path string, body []byte) (*http.Request, error)
 
 	key := os.Getenv("SUPABASE_SERVICE_KEY")
 
+	if method == "GET" {
+		req.Header.Set("Prefer", "count=exact")
+	}
+
 	req.Header.Set("apikey", key)
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
