@@ -29,7 +29,7 @@ func main() {
 	docs.SwaggerInfo.Version = "1.0"
 	env := os.Getenv("ENV")
 	if env == "production" {
-		docs.SwaggerInfo.Host = "https://employee-static-api.onrender.com"
+		docs.SwaggerInfo.Host = ""
 		docs.SwaggerInfo.Schemes = []string{"https"}
 	} else {
 		docs.SwaggerInfo.Host = "localhost:8080"
