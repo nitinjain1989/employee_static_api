@@ -1,4 +1,3 @@
-basePath: /api
 definitions:
   models.CreateEmployeeRequest:
     properties:
@@ -159,12 +158,8 @@ definitions:
         example: home
         type: string
     type: object
-host: localhost:8080
 info:
   contact: {}
-  description: Employee management service
-  title: Employee API
-  version: "1.0"
 paths:
   /api/employees/{id}:
     patch:

@@ -17,11 +17,6 @@ func init() {
 	}
 }
 
-// @title Employee API
-// @version 1.0
-// @description Employee management service
-// @host localhost:8080
-// @BasePath /api
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
