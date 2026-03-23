@@ -1,0 +1,534 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Employee management service",
+        "title": "Employee API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/api/employees/{id}": {
+            "patch": {
+                "description": "Update employee details by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "employees"
+                ],
+                "summary": "Update an existing employee",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Employee ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Employee payload",
+                        "name": "employee",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Employee"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employee updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing ID or invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/employees": {
+            "get": {
+                "description": "Fetch employees with pagination, search, and filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "employees"
+                ],
+                "summary": "Get employees with filters",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "Number of records to fetch",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 0,
+                        "description": "Number of records to skip",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keyword",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated designations",
+                        "name": "designation",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated departments",
+                        "name": "department",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmployeeListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new employee with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "employees"
+                ],
+                "summary": "Create a new employee",
+                "parameters": [
+                    {
+                        "description": "Employee payload",
+                        "name": "employee",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateEmployeeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Employee created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmployeeDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/employees/filters": {
+            "get": {
+                "description": "Fetch available filter values like designation, department, status, etc.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "employees"
+                ],
+                "summary": "Get employee filter options",
+                "responses": {
+                    "200": {
+                        "description": "Filter data fetched successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmployeeFiltersResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/employees/{id}": {
+            "get": {
+                "description": "Fetch a single employee by its unique ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "employees"
+                ],
+                "summary": "Get employee by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Employee ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmployeeDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid ID",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an employee by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "employees"
+                ],
+                "summary": "Delete an employee",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Employee ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Employee deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing employee ID",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.MessageResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.CreateEmployeeRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name"
+            ],
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "example": "Noida"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "India"
+                },
+                "department": {
+                    "type": "string",
+                    "example": "Engineering"
+                },
+                "designation": {
+                    "type": "string",
+                    "example": "iOS Engineer"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "nitin@test.com"
+                },
+                "img_url": {
+                    "type": "string",
+                    "example": "https://image.com/profile.jpg"
+                },
+                "joining_date": {
+                    "type": "string",
+                    "example": "2024-01-01"
+                },
+                "mobiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.MobileRequest"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Nitin Jain"
+                }
+            }
+        },
+        "models.Employee": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "designation": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "img_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "joining_date": {
+                    "type": "string"
+                },
+                "mobiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Mobile"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EmployeeDetailResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.Employee"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EmployeeFilters": {
+            "type": "object",
+            "properties": {
+                "departments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "designations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "mobile_types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FilterOption"
+                    }
+                },
+                "statuses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FilterOption"
+                    }
+                }
+            }
+        },
+        "models.EmployeeFiltersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.EmployeeFilters"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EmployeeListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Employee"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "meta": {
+                    "$ref": "#/definitions/models.Meta"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.FilterOption": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Meta": {
+            "type": "object",
+            "properties": {
+                "has_next_page": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Mobile": {
+            "type": "object",
+            "properties": {
+                "employee_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "home, office, other",
+                    "type": "string"
+                }
+            }
+        },
+        "models.MobileRequest": {
+            "type": "object",
+            "properties": {
+                "number": {
+                    "type": "string",
+                    "example": "9876543210"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "home"
+                }
+            }
+        }
+    }
+}

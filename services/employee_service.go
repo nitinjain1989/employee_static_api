@@ -53,7 +53,7 @@ func (s *EmployeeService) CreateEmployee(emp models.Employee) (string, error) {
 	return s.repo.CreateEmployeeWithMobiles(context.Background(), emp)
 }
 
-func (s *EmployeeService) GetEmployeeFilters() (map[string]interface{}, error) {
+func (s *EmployeeService) GetEmployeeFilters() (*models.EmployeeFilters, error) {
 
 	designations, err := s.repo.FetchDistinctField(context.Background(), "designation")
 	if err != nil {
@@ -65,22 +65,22 @@ func (s *EmployeeService) GetEmployeeFilters() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to fetch departments")
 	}
 
-	statuses := []map[string]string{
-		{"label": "Active", "value": "active"},
-		{"label": "Inactive", "value": "inactive"},
+	statuses := []models.FilterOption{
+		{Label: "Active", Value: "active"},
+		{Label: "Inactive", Value: "inactive"},
 	}
 
-	mobileTypes := []map[string]string{
-		{"label": "Home", "value": "home"},
-		{"label": "Office", "value": "office"},
-		{"label": "Other", "value": "other"},
+	mobileTypes := []models.FilterOption{
+		{Label: "Home", Value: "home"},
+		{Label: "Office", Value: "office"},
+		{Label: "Other", Value: "other"},
 	}
 
-	return map[string]interface{}{
-		"designations": designations,
-		"departments":  departments,
-		"statuses":     statuses,
-		"mobile_types": mobileTypes,
+	return &models.EmployeeFilters{
+		Designations: designations,
+		Departments:  departments,
+		Statuses:     statuses,
+		MobileTypes:  mobileTypes,
 	}, nil
 }
 

@@ -22,23 +22,11 @@ type Employee struct {
 	Mobiles []Mobile `json:"mobiles,omitempty"`
 }
 
-type EmployeeData struct {
-	Employees []Employee `json:"employees,omitempty"`
-	Employee  *Employee  `json:"employee,omitempty"`
-}
-
 type Meta struct {
 	TotalCount  int  `json:"total_count"`
 	Page        int  `json:"page"`
 	PageSize    int  `json:"page_size"`
 	HasNextPage bool `json:"has_next_page"`
-}
-
-type APIResponse struct {
-	Status  string       `json:"status"`
-	Message string       `json:"message"`
-	Data    EmployeeData `json:"data"`
-	Meta    *Meta        `json:"meta,omitempty"`
 }
 
 type EmployeeFilter struct {
@@ -50,4 +38,40 @@ type EmployeeFilter struct {
 	// 📦 Pagination (optional)
 	Limit  *int `json:"limit"`
 	Offset *int `json:"offset"`
+}
+
+type MessageResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+type EmployeeListResponse struct {
+	Status  string     `json:"status"`
+	Message string     `json:"message"`
+	Data    []Employee `json:"data"`
+	Meta    *Meta      `json:"meta,omitempty"`
+}
+
+type EmployeeDetailResponse struct {
+	Status  string    `json:"status"`
+	Message string    `json:"message"`
+	Data    *Employee `json:"data"`
+}
+
+type FilterOption struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+
+type EmployeeFilters struct {
+	Designations []string       `json:"designations"`
+	Departments  []string       `json:"departments"`
+	Statuses     []FilterOption `json:"statuses"`
+	MobileTypes  []FilterOption `json:"mobile_types"`
+}
+
+type EmployeeFiltersResponse struct {
+	Status  string           `json:"status"`
+	Message string           `json:"message"`
+	Data    *EmployeeFilters `json:"data"`
 }

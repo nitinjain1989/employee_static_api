@@ -28,7 +28,7 @@ async function loadEmployeeData(id) {
         const res = await fetch(`api/employees/${id}`);
         const result = await res.json();
 
-        const emp = result.data.employee;
+        const emp = result.data;
         if (!emp) return;
 
         prefillForm(emp);
@@ -164,7 +164,7 @@ if (form) {
             }
 
             if (res.ok) {
-                window.location.href = "index.html";
+                window.location.href = "/";
             } else {
                 showError(await res.text());
             }
@@ -188,4 +188,15 @@ function setValue(id, value) {
 
 function showError(msg) {
     message.innerText = "❌ " + msg;
+}
+
+
+
+
+function goBack() {
+        if (document.referrer) {
+            window.history.back();
+        } else {
+            window.location.href = "/";
+        }
 }

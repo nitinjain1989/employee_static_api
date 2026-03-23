@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"net/http"
 	"static-api/config"
 
 	"static-api/handlers"
@@ -9,9 +8,13 @@ import (
 	"static-api/services"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
+	_ "static-api/docs" // 👈 IMPORTANT
 )
 
-func RegisterRoutes() http.Handler {
+func RegisterRoutes() *gin.Engine {
 	pgPool := config.InitDB()
 	// Dependency Injection
 	repo := repositories.NewEmployeeRepository(pgPool)
@@ -21,6 +24,16 @@ func RegisterRoutes() http.Handler {
 	r := gin.Default()
 
 	api := r.Group("/api")
+
+	r.GET("/", func(c *gin.Context) {
+		c.File("./public/index.html")
+	})
+
+	r.GET("/add", func(c *gin.Context) {
+		c.File("./public/add.html")
+	})
+
+	r.Static("/js", "./public/js")
 
 	// ✅ Employees
 	api.GET("/employees", handler.GetEmployees)
@@ -36,6 +49,8 @@ func RegisterRoutes() http.Handler {
 	api.GET("/employees/filters", handler.GetEmployeeFilters)
 
 	api.DELETE("/employees/:id", handler.DeleteEmployee)
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return r
 }

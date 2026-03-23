@@ -8,10 +8,11 @@ async function loadEmployees() {
     try {
         const response = await fetch("/api/employees");
         const result = await response.json();
-
+        const employees = result.data; // 👈 IMPORTANT
         table.innerHTML = "";
 
-        result.data.employees.forEach(emp => {
+        employees.forEach(emp => {
+
             const row = document.createElement("tr");
 
             row.innerHTML = `
@@ -49,7 +50,7 @@ function attachEditListeners() {
     buttons.forEach(btn => {
         btn.addEventListener("click", () => {
             const id = btn.getAttribute("data-id");
-            window.location.href = `add.html?id=${id}`;
+            window.location.href = `/add?id=${id}`;
         });
     });
 }
