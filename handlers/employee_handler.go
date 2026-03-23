@@ -1,251 +1,213 @@
 package handlers
 
 import (
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/url"
-	"static-api/config"
 	"static-api/models"
-	"strconv"
+	"static-api/services"
+	"static-api/utils"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
-func GetEmployees(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	queries := r.URL.Query()
-	limit := queries.Get("limit")
-	path := buildPath(queries)
+type EmployeeHandler struct {
+	service *services.EmployeeService
+}
 
-	req, err := config.NewSupabaseRequest("GET", path, nil)
+func NewEmployeeHandler(s *services.EmployeeService) *EmployeeHandler {
+	return &EmployeeHandler{service: s}
+}
+
+func (h *EmployeeHandler) GetEmployees(c *gin.Context) {
+
+	filter := models.EmployeeFilter{
+		Limit:  utils.GetInt(c.Query("limit")),
+		Offset: utils.GetInt(c.Query("offset")),
+		Search: c.Query("search"),
+		Status: c.Query("status"),
+	}
+
+	if d := c.Query("designation"); d != "" {
+		filter.Designation = strings.Split(d, ",")
+	}
+
+	if d := c.Query("department"); d != "" {
+		filter.Department = strings.Split(d, ",")
+	}
+
+	employees, meta, err := h.service.GetEmployees(c.Request.Context(), filter)
+
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
 		return
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		http.Error(w, "supabase error", resp.StatusCode)
-		return
-	}
-
-	var employees []models.Employee
-	if err := json.NewDecoder(resp.Body).Decode(&employees); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	meta := parseContentRange(resp.Header.Get("content-range"), limit)
-
-	json.NewEncoder(w).Encode(models.APIResponse{
+	c.JSON(200, models.APIResponse{
 		Status:  "success",
 		Message: "Employees fetched successfully",
 		Data: models.EmployeeData{
 			Employees: employees,
 		},
-		Meta: meta,
+		Meta: &meta,
 	})
 }
 
-func CreateEmployee(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+/*func (eh *EmployeeHandler) GetEmployees(c *gin.Context) {
 
-	var emp models.Employee
-	if err := json.NewDecoder(r.Body).Decode(&emp); err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
+	employees, meta, err := eh.service.GetEmployees(c)
 
-	body, _ := json.Marshal(emp)
-
-	req, err := config.NewSupabaseRequest("POST", "/employees", body)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
 		return
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		http.Error(w, string(body), resp.StatusCode)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "success",
+	c.JSON(200, models.APIResponse{
+		Status:  "success",
+		Message: "Employees fetched successfully",
+		Data:    models.EmployeeData{Employees: employees},
+		Meta:    &meta,
 	})
-}
+}*/
 
-func UpdateEmployee(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func (eh *EmployeeHandler) GetEmplyoeeByID(c *gin.Context) {
 
-	id := r.URL.Query().Get("id")
+	id := c.Param("id")
+
 	if id == "" {
-		http.Error(w, "Missing employee ID", 400)
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Missing id",
+		})
+		return
+	}
+
+	employee, err := eh.service.GetEmployeeByID(id)
+
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, models.APIResponse{
+		Status:  "success",
+		Message: "Employee fetched successfully",
+		Data: models.EmployeeData{
+			Employee: employee,
+		},
+	})
+}
+
+func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
+	var emp models.Employee
+
+	// Parse request body
+	if err := c.ShouldBindJSON(&emp); err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Validation
+	if emp.Name == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Name is required",
+		})
+		return
+	}
+
+	// Call service
+	id, err := h.service.CreateEmployee(emp)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Success response
+	c.JSON(201, models.APIResponse{
+		Status:  "success",
+		Message: "Employee created successfully",
+		Data: models.EmployeeData{
+			Employee: &models.Employee{
+				ID: id,
+			},
+		},
+	})
+}
+
+func (h *EmployeeHandler) UpdateEmployee(c *gin.Context) {
+	id := c.Param("id") // 👈 replaces mux.Vars
+
+	if id == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Missing id",
+		})
 		return
 	}
 
 	var emp models.Employee
-	if err := json.NewDecoder(r.Body).Decode(&emp); err != nil {
-		http.Error(w, err.Error(), 400)
+
+	// Parse request body
+	if err := c.ShouldBindJSON(&emp); err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
 		return
 	}
 
-	body, _ := json.Marshal(emp)
-
-	req, err := config.NewSupabaseRequest(
-		"PATCH",
-		"/employees?id=eq."+id,
-		body,
-	)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
+	// Call service
+	if err := h.service.UpdateEmployee(id, emp); err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
 		return
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		http.Error(w, string(body), resp.StatusCode)
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "updated",
+	// Success response
+	c.JSON(200, models.APIResponse{
+		Status:  "success",
+		Message: "Employee updated successfully",
 	})
 }
 
-func buildInFilter(key, value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
+func (h *EmployeeHandler) DeleteEmployee(c *gin.Context) {
+	id := c.Param("id")
+
+	if id == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Employee ID is required",
+		})
+		return
 	}
 
-	items := strings.Split(value, ",")
-	var cleaned []string
-
-	for _, item := range items {
-		v := strings.TrimSpace(item)
-		if v != "" {
-			cleaned = append(cleaned, url.QueryEscape(v))
-		}
-	}
-
-	if len(cleaned) == 0 {
-		return ""
-	}
-
-	return "&" + key + "=in.(" + strings.Join(cleaned, ",") + ")"
-}
-
-func parseContentRange(contentRange, limitStr string) models.Meta {
-	meta := models.Meta{
-		TotalCount: 0,
-		PageSize:   0,
-		Page:       1,
-	}
-
-	if contentRange == "" {
-		return meta
-	}
-
-	// Example: "0-19/100"
-	parts := strings.Split(contentRange, "/")
-	if len(parts) != 2 {
-		return meta
-	}
-
-	rangePart := parts[0]
-	totalStr := parts[1]
-
-	total, err := strconv.Atoi(totalStr)
+	err := h.service.DeleteEmployee(id)
 	if err != nil {
-		return meta
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
 	}
 
-	rangeParts := strings.Split(rangePart, "-")
-	if len(rangeParts) != 2 {
-		return meta
-	}
-
-	start, err1 := strconv.Atoi(rangeParts[0])
-	end, err2 := strconv.Atoi(rangeParts[1])
-
-	if err1 != nil || err2 != nil {
-		return meta
-	}
-
-	pageSize := end - start + 1
-	page := 1
-
-	if limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
-			page = (start / limit) + 1
-		}
-	}
-
-	meta.TotalCount = total
-	meta.PageSize = pageSize
-	meta.Page = page
-
-	return meta
-}
-func buildPath(queries url.Values) string {
-	//queries := r.URL.Query()
-	limit := queries.Get("limit")
-	offset := queries.Get("offset")
-	search := queries.Get("search")
-	designation := queries.Get("designation")
-	department := queries.Get("department")
-	status := queries.Get("status")
-
-	path := "/employees?select=*"
-
-	if search != "" {
-		encodedSearch := url.QueryEscape(search)
-		path += "&order=name.asc,created_at.desc,id.desc"
-		path += "&name=ilike.*" + encodedSearch + "*"
-	} else {
-		path += "&order=created_at.desc,id.desc"
-	}
-
-	// 🎯 Filters
-	path += buildInFilter("designation", designation)
-	path += buildInFilter("department", department)
-
-	if status == "active" {
-		path += "&is_active=eq.true"
-	} else if status == "inactive" {
-		path += "&is_active=eq.false"
-	}
-
-	if limit != "" {
-		path += "&limit=" + limit
-	}
-
-	if offset != "" {
-		path += "&offset=" + offset
-	}
-
-	return path
+	c.JSON(200, models.APIResponse{
+		Status:  "success",
+		Message: "Employee deleted successfully",
+	})
 }

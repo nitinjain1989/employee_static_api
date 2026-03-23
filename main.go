@@ -4,8 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"static-api/handlers"
+	"static-api/routes"
 
 	"github.com/joho/godotenv"
 )
@@ -22,10 +21,13 @@ func main() {
 		port = "8080"
 	}
 
-	// API routes
-	http.HandleFunc("/employees", handlers.GetEmployees)
+	/*// API routes
+	router := routes.RegisterRoutes()
+	//http.HandleFunc("/employees", handlers.GetEmployees)
+	//http.HandleFunc("/employees/get", handlers.GetEmployeeByID)
 	http.HandleFunc("/employees/create", handlers.CreateEmployee)
 	http.HandleFunc("/employees/update", handlers.UpdateEmployee)
+	http.HandleFunc("/employees/filters", handlers.GetEmployeeFilters)
 
 	// Absolute path fix (IMPORTANT)
 	publicPath, err := filepath.Abs("public")
@@ -38,5 +40,18 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir(publicPath)))
 
 	log.Println("Server started on port", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, router))*/
+
+	//mux := http.NewServeMux()
+
+	// API routes
+	router := routes.RegisterRoutes()
+
+	// ✅ Serve public folder
+	fs := http.FileServer(http.Dir("./public"))
+	http.Handle("/", fs)
+	http.Handle("/api/", router)
+
+	log.Println("Server running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

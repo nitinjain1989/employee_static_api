@@ -1,19 +1,28 @@
 package config
 
 import (
+	"context"
 	"os"
 
-	"github.com/supabase-community/supabase-go"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewSupabaseClient() *supabase.Client {
-	url := os.Getenv("SUPABASE_URL")
-	key := os.Getenv("SUPABASE_SERVICE_KEY")
+func InitDB() *pgxpool.Pool {
+	connStr := os.Getenv("SUPABASE_DIRECT_CONNECTION")
 
-	client, err := supabase.NewClient(url, key, nil)
+	config, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		panic(err)
 	}
 
-	return client
+	// 🔥 Disable prepared statement cache (IMPORTANT for dynamic queries)
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		panic(err)
+	}
+
+	return db
 }

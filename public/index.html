@@ -9,6 +9,23 @@
         table { width: 100%; margin-top: 20px; border-collapse: collapse; background: white; }
         th, td { padding: 10px; border: 1px solid #ddd; }
         img { width: 50px; height: 50px; border-radius: 50%; }
+        .edit-btn {
+            background: #2563eb; /* blue */
+            margin-right: 5px;
+        }
+
+        .delete-btn {
+            background: #dc2626; /* red */
+        }
+
+        td {
+            white-space: nowrap; /* 🔥 prevents wrapping */
+        }
+
+        td button {
+            display: inline-block;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -30,12 +47,13 @@
             <th>Department</th>
             <th>City</th>
             <th>Status</th>
+            <th>Action</th>
         </tr>
         </thead>
         <tbody></tbody>
     </table>
 </div>
 
-<script src="script.js"></script>
+<script src="js/employees.js" defer></script>
 </body>
 </html>
