@@ -32,103 +32,6 @@ type EmployeeResponse struct {
 	ContentRange string
 }
 
-/*func (r *EmployeeRepository) GetEmployeeByID(
-	ctx context.Context,
-	id string,
-) (*dto.EmployeeResponse, error) {
-
-	rows, err := r.PgDB.Query(ctx, `
-		SELECT
-			e.id, e.name, e.email, e.designation, e.department, e.city,
-			e.country, e.img_url, e.is_active, e.joining_date,
-			e.version, e.updated_at, e.deleted_at,
-			m.id, m.number, m.type
-		FROM employees e
-		LEFT JOIN mobiles m ON m.employee_id = e.id
-		WHERE e.id = $1
-	`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var employee *dto.EmployeeResponse
-
-	for rows.Next() {
-		var (
-			e dto.EmployeeResponse
-			m dto.MobileResponse
-
-			mobileID   *string
-			mobileNum  *string
-			mobileType *string
-
-			joiningDate *time.Time
-			updatedAt   time.Time
-			deletedAt   *time.Time
-		)
-
-		err := rows.Scan(
-			&e.ID, &e.Name, &e.Email,
-			&e.Designation, &e.Department, &e.City,
-			&e.Country, &e.ImgURL, &e.IsActive,
-			&joiningDate,
-			&e.Version,
-			&updatedAt,
-			&deletedAt,
-			&mobileID, &mobileNum, &mobileType,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		// ✅ First row → initialize employee
-		if employee == nil {
-			e.Mobiles = []dto.MobileResponse{} // 🔥 ensures empty array
-
-			if joiningDate != nil {
-				e.JoiningDate = joiningDate.Format("2006-01-02")
-			} else {
-				e.JoiningDate = ""
-			}
-
-			// ✅ updated_at → ISO string
-			e.UpdatedAt = updatedAt.Format(time.RFC3339)
-
-			// ✅ deleted_at → "" if NULL
-			if deletedAt != nil {
-				e.DeletedAt = deletedAt.Format(time.RFC3339)
-			} else {
-				e.DeletedAt = ""
-			}
-
-			employee = &e
-		}
-
-		// ✅ Only add mobile if exists
-		if mobileID != nil {
-			m.ID = *mobileID
-
-			if mobileNum != nil {
-				m.Number = *mobileNum
-			}
-			if mobileType != nil {
-				m.Type = *mobileType
-			}
-
-			employee.Mobiles = append(employee.Mobiles, m)
-		}
-	}
-
-	// ❌ Employee not found
-	if employee == nil {
-		return nil, fmt.Errorf("employee not found")
-	}
-
-	// ✅ If no mobiles → already []
-	return employee, nil
-}*/
-
 func (r *EmployeeRepository) FetchEmployees(
 	ctx context.Context,
 	filter dto.EmployeeFilterRequest,
@@ -145,7 +48,32 @@ func (r *EmployeeRepository) FetchEmployees(
 		return nil, dto.Meta{}, err
 	}
 
-	dataQuery, dataArgs := buildDataQuery(filter, paginate, limit, offset)
+	var employeeIDs []string
+
+	// ✅ Step 1: Fetch IDs with pagination
+	if paginate {
+		idQuery, idArgs := buildEmployeeIDQuery(filter, limit, offset)
+
+		rows, err := r.PgDB.Query(ctx, idQuery, idArgs...)
+		if err != nil {
+			return nil, dto.Meta{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return nil, dto.Meta{}, err
+			}
+			employeeIDs = append(employeeIDs, id)
+		}
+
+		if len(employeeIDs) == 0 {
+			return []dto.EmployeeResponse{}, buildMeta(totalCount, paginate, limit, offset), nil
+		}
+	}
+
+	dataQuery, dataArgs := buildDataQueryFixed(filter, employeeIDs, paginate)
 	rows, err := r.executeDataQuery(ctx, dataQuery, dataArgs)
 	if err != nil {
 		return nil, dto.Meta{}, err
@@ -160,6 +88,125 @@ func (r *EmployeeRepository) FetchEmployees(
 
 	meta := buildMeta(totalCount, paginate, limit, offset)
 	return employees, meta, nil
+}
+
+func buildEmployeeIDQuery(
+	filter dto.EmployeeFilterRequest,
+	limit int,
+	offset int,
+) (string, []interface{}) {
+
+	query := `
+		SELECT e.id
+		FROM employees e
+		WHERE 1=1
+	`
+
+	var args []interface{}
+	idx := 1
+
+	if filter.Search != "" {
+		query += fmt.Sprintf(" AND e.name ILIKE $%d", idx)
+		args = append(args, "%"+filter.Search+"%")
+		idx++
+	}
+
+	if len(filter.Designation) > 0 {
+		query += fmt.Sprintf(" AND e.designation = ANY($%d)", idx)
+		args = append(args, filter.Designation)
+		idx++
+	}
+
+	if len(filter.Department) > 0 {
+		query += fmt.Sprintf(" AND e.department = ANY($%d)", idx)
+		args = append(args, filter.Department)
+		idx++
+	}
+
+	if filter.Status == "active" {
+		query += " AND e.is_active = true"
+	} else if filter.Status == "inactive" {
+		query += " AND e.is_active = false"
+	}
+
+	// ✅ SAME SORTING LOGIC (VERY IMPORTANT)
+	if filter.Search != "" {
+		query += " ORDER BY e.name ASC, e.created_at DESC, e.id DESC"
+	} else {
+		query += " ORDER BY e.created_at DESC, e.id DESC"
+	}
+
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", idx, idx+1)
+	args = append(args, limit, offset)
+
+	return query, args
+}
+
+func buildDataQueryFixed(
+	filter dto.EmployeeFilterRequest,
+	employeeIDs []string,
+	paginate bool,
+) (string, []interface{}) {
+
+	query := `
+		SELECT 
+			e.id, e.name, e.email, e.designation, e.department, e.city,
+			e.country, e.img_url, e.is_active, e.joining_date,
+			e.version, e.updated_at, e.deleted_at,
+			m.id, m.number, m.type
+		FROM employees e
+		LEFT JOIN mobiles m ON m.employee_id = e.id
+		WHERE 1=1
+	`
+
+	var args []interface{}
+	idx := 1
+
+	// ✅ If paginated → filter by IDs
+	if paginate {
+		query += fmt.Sprintf(" AND e.id = ANY($%d)", idx)
+		args = append(args, employeeIDs)
+		idx++
+	} else {
+		// apply filters normally (same as before)
+		if filter.Search != "" {
+			query += fmt.Sprintf(" AND e.name ILIKE $%d", idx)
+			args = append(args, "%"+filter.Search+"%")
+			idx++
+		}
+
+		if len(filter.Designation) > 0 {
+			query += fmt.Sprintf(" AND e.designation = ANY($%d)", idx)
+			args = append(args, filter.Designation)
+			idx++
+		}
+
+		if len(filter.Department) > 0 {
+			query += fmt.Sprintf(" AND e.department = ANY($%d)", idx)
+			args = append(args, filter.Department)
+			idx++
+		}
+
+		if filter.Status == "active" {
+			query += " AND e.is_active = true"
+		} else if filter.Status == "inactive" {
+			query += " AND e.is_active = false"
+		}
+	}
+
+	// ✅ IMPORTANT: Preserve original order
+	if paginate {
+		query += fmt.Sprintf(" ORDER BY array_position($%d, e.id)", idx)
+		args = append(args, employeeIDs)
+	} else {
+		if filter.Search != "" {
+			query += " ORDER BY e.name ASC, e.created_at DESC, e.id DESC"
+		} else {
+			query += " ORDER BY e.created_at DESC, e.id DESC"
+		}
+	}
+
+	return query, args
 }
 
 func buildMeta(totalCount int, paginate bool, limit, offset int) dto.Meta {
