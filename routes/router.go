@@ -21,6 +21,10 @@ func RegisterRoutes() *gin.Engine {
 	service := services.NewEmployeeService(repo)
 	handler := handlers.NewEmployeeHandler(service)
 
+	syncRepo := repositories.NewSyncRepository(pgPool)
+	syncService := services.NewSyncService(syncRepo)
+	syncHandler := handlers.NewSyncHandler(syncService)
+
 	r := gin.Default()
 
 	api := r.Group("/api")
@@ -49,6 +53,8 @@ func RegisterRoutes() *gin.Engine {
 	api.GET("/employees/filters", handler.GetEmployeeFilters)
 
 	api.DELETE("/employees/:id", handler.DeleteEmployee)
+
+	api.POST("/sync", syncHandler.Sync)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

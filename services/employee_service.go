@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
-	"static-api/models"
+	"static-api/dto"
 	"static-api/repositories"
 )
 
@@ -17,29 +17,22 @@ func NewEmployeeService(r *repositories.EmployeeRepository) *EmployeeService {
 
 func (s *EmployeeService) GetEmployees(
 	ctx context.Context,
-	filter models.EmployeeFilter,
-) ([]models.Employee, models.Meta, error) {
+	filter dto.EmployeeFilterRequest,
+) ([]dto.EmployeeResponse, dto.Meta, error) {
 
-	return s.repo.FetchEmployees(ctx, filter)
-}
-
-/*func (s *EmployeeService) GetEmployees(c *gin.Context) ([]models.Employee, models.Meta, error) {
-
-	path := utils.BuildPath(c)
-
-	resp, err := s.repo.FetchEmployees(path)
-
+	employees, meta, err := s.repo.FetchEmployees(ctx, filter)
 	if err != nil {
-		return nil, models.Meta{}, err
+		return nil, meta, err
 	}
 
-	meta := utils.ParseContentRange(resp.ContentRange, c.Query("limit"))
+	if len(employees) == 0 {
+		return []dto.EmployeeResponse{}, meta, nil
+	}
 
-	return resp.Data, meta, nil
+	return employees, meta, nil
+}
 
-}*/
-
-func (s *EmployeeService) GetEmployeeByID(id string) (*models.Employee, error) {
+func (s *EmployeeService) GetEmployeeByID(id string) (*dto.EmployeeResponse, error) {
 	employees, err := s.repo.GetEmployeeByID(context.Background(), id)
 	if err != nil {
 		return nil, err
@@ -48,12 +41,12 @@ func (s *EmployeeService) GetEmployeeByID(id string) (*models.Employee, error) {
 	return employees, nil
 }
 
-func (s *EmployeeService) CreateEmployee(emp models.Employee) (string, error) {
+func (s *EmployeeService) CreateEmployee(emp dto.CreateEmployeeRequest) (*dto.EmployeeResponse, error) {
 
 	return s.repo.CreateEmployeeWithMobiles(context.Background(), emp)
 }
 
-func (s *EmployeeService) GetEmployeeFilters() (*models.EmployeeFilters, error) {
+func (s *EmployeeService) GetEmployeeFilters() (*dto.EmployeeFilters, error) {
 
 	designations, err := s.repo.FetchDistinctField(context.Background(), "designation")
 	if err != nil {
@@ -65,18 +58,18 @@ func (s *EmployeeService) GetEmployeeFilters() (*models.EmployeeFilters, error) 
 		return nil, fmt.Errorf("failed to fetch departments")
 	}
 
-	statuses := []models.FilterOption{
+	statuses := []dto.FilterOption{
 		{Label: "Active", Value: "active"},
 		{Label: "Inactive", Value: "inactive"},
 	}
 
-	mobileTypes := []models.FilterOption{
+	mobileTypes := []dto.FilterOption{
 		{Label: "Home", Value: "home"},
 		{Label: "Office", Value: "office"},
 		{Label: "Other", Value: "other"},
 	}
 
-	return &models.EmployeeFilters{
+	return &dto.EmployeeFilters{
 		Designations: designations,
 		Departments:  departments,
 		Statuses:     statuses,
@@ -84,7 +77,7 @@ func (s *EmployeeService) GetEmployeeFilters() (*models.EmployeeFilters, error) 
 	}, nil
 }
 
-func (s *EmployeeService) UpdateEmployee(id string, emp models.Employee) error {
+func (s *EmployeeService) UpdateEmployee(id string, emp dto.UpdateEmployeeRequest) (*dto.EmployeeResponse, error) {
 	return s.repo.UpdateEmployeeWithMobiles(context.Background(), id, emp)
 }
 

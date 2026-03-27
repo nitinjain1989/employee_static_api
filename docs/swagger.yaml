@@ -1,5 +1,5 @@
 definitions:
-  models.CreateEmployeeRequest:
+  dto.CreateEmployeeRequest:
     properties:
       city:
         example: Noida
@@ -19,12 +19,14 @@ definitions:
       img_url:
         example: https://image.com/profile.jpg
         type: string
+      is_active:
+        type: boolean
       joining_date:
         example: "2024-01-01"
         type: string
       mobiles:
         items:
-          $ref: '#/definitions/models.MobileRequest'
+          $ref: '#/definitions/dto.MobileRequest'
         type: array
       name:
         example: Nitin Jain
@@ -33,45 +35,16 @@ definitions:
     - email
     - name
     type: object
-  models.Employee:
-    properties:
-      city:
-        type: string
-      country:
-        type: string
-      department:
-        type: string
-      designation:
-        type: string
-      email:
-        type: string
-      id:
-        type: string
-      img_url:
-        type: string
-      is_active:
-        type: boolean
-      joining_date:
-        type: string
-      mobiles:
-        items:
-          $ref: '#/definitions/models.Mobile'
-        type: array
-      name:
-        type: string
-    required:
-    - email
-    type: object
-  models.EmployeeDetailResponse:
+  dto.EmployeeDetailResponse:
     properties:
       data:
-        $ref: '#/definitions/models.Employee'
+        $ref: '#/definitions/dto.EmployeeResponse'
       message:
         type: string
       status:
         type: string
     type: object
-  models.EmployeeFilters:
+  dto.EmployeeFilters:
     properties:
       departments:
         items:
@@ -83,50 +56,77 @@ definitions:
         type: array
       mobile_types:
         items:
-          $ref: '#/definitions/models.FilterOption'
+          $ref: '#/definitions/dto.FilterOption'
         type: array
       statuses:
         items:
-          $ref: '#/definitions/models.FilterOption'
+          $ref: '#/definitions/dto.FilterOption'
         type: array
     type: object
-  models.EmployeeFiltersResponse:
+  dto.EmployeeFiltersResponse:
     properties:
       data:
-        $ref: '#/definitions/models.EmployeeFilters'
+        $ref: '#/definitions/dto.EmployeeFilters'
       message:
         type: string
       status:
         type: string
     type: object
-  models.EmployeeListResponse:
+  dto.EmployeeListResponse:
     properties:
       data:
         items:
-          $ref: '#/definitions/models.Employee'
+          $ref: '#/definitions/dto.EmployeeResponse'
         type: array
       message:
         type: string
       meta:
-        $ref: '#/definitions/models.Meta'
+        $ref: '#/definitions/dto.Meta'
       status:
         type: string
     type: object
-  models.FilterOption:
+  dto.EmployeeResponse:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      deleted_at:
+        type: string
+      department:
+        type: string
+      designation:
+        type: string
+      email:
+        type: string
+      id:
+        description: 'optional: keep or remove'
+        type: string
+      img_url:
+        type: string
+      is_active:
+        type: boolean
+      joining_date:
+        type: string
+      mobiles:
+        items:
+          $ref: '#/definitions/dto.MobileResponse'
+        type: array
+      name:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  dto.FilterOption:
     properties:
       label:
         type: string
       value:
         type: string
     type: object
-  models.MessageResponse:
-    properties:
-      message:
-        type: string
-      status:
-        type: string
-    type: object
-  models.Meta:
+  dto.Meta:
     properties:
       has_next_page:
         type: boolean
@@ -137,25 +137,57 @@ definitions:
       total_count:
         type: integer
     type: object
-  models.Mobile:
-    properties:
-      employee_id:
-        type: string
-      id:
-        type: string
-      number:
-        type: string
-      type:
-        description: home, office, other
-        type: string
-    type: object
-  models.MobileRequest:
+  dto.MobileRequest:
     properties:
       number:
         example: "9876543210"
         type: string
       type:
         example: home
+        type: string
+    type: object
+  dto.MobileResponse:
+    properties:
+      id:
+        type: string
+      number:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.UpdateEmployeeRequest:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      department:
+        type: string
+      designation:
+        type: string
+      email:
+        type: string
+      img_url:
+        type: string
+      is_active:
+        type: boolean
+      joining_date:
+        type: string
+      mobiles:
+        items:
+          $ref: '#/definitions/dto.MobileRequest'
+        type: array
+      name:
+        type: string
+      version:
+        description: "\U0001F525 required"
+        type: integer
+    type: object
+  response.MessageResponse:
+    properties:
+      message:
+        type: string
+      status:
         type: string
     type: object
 info:
@@ -165,34 +197,44 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Update employee details by ID
+      description: Updates employee details by ID. Supports partial updates. Maximum
+        3 mobile numbers allowed. Returns conflict if version mismatch (last-write
+        handling).
       parameters:
       - description: Employee ID
         in: path
         name: id
         required: true
         type: string
-      - description: Employee payload
+      - description: Employee update payload (max 3 mobiles allowed)
         in: body
         name: employee
         required: true
         schema:
-          $ref: '#/definitions/models.Employee'
+          $ref: '#/definitions/dto.UpdateEmployeeRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Employee updated successfully
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/dto.EmployeeDetailResponse'
         "400":
-          description: Missing ID or invalid request body
+          description: Missing ID, invalid request body, or validation error
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
+        "404":
+          description: Employee not found
+          schema:
+            $ref: '#/definitions/response.MessageResponse'
+        "409":
+          description: Conflict error (e.g., version mismatch)
+          schema:
+            $ref: '#/definitions/response.MessageResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
       summary: Update an existing employee
       tags:
       - employees
@@ -234,40 +276,41 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.EmployeeListResponse'
+            $ref: '#/definitions/dto.EmployeeListResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
       summary: Get employees with filters
       tags:
       - employees
     post:
       consumes:
       - application/json
-      description: Create a new employee with the provided details
+      description: Creates a new employee with basic details and up to 3 mobile numbers.
+        Validates required fields before creation.
       parameters:
-      - description: Employee payload
+      - description: Employee payload (max 3 mobiles allowed)
         in: body
         name: employee
         required: true
         schema:
-          $ref: '#/definitions/models.CreateEmployeeRequest'
+          $ref: '#/definitions/dto.CreateEmployeeRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Employee created successfully
           schema:
-            $ref: '#/definitions/models.EmployeeDetailResponse'
+            $ref: '#/definitions/dto.EmployeeDetailResponse'
         "400":
-          description: Invalid request body or validation error
+          description: Invalid request body, missing name, or too many mobiles
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
       summary: Create a new employee
       tags:
       - employees
@@ -288,15 +331,15 @@ paths:
         "200":
           description: Employee deleted successfully
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
         "400":
           description: Missing employee ID
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
       summary: Delete an employee
       tags:
       - employees
@@ -316,15 +359,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.EmployeeDetailResponse'
+            $ref: '#/definitions/dto.EmployeeDetailResponse'
         "400":
           description: Missing or invalid ID
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
       summary: Get employee by ID
       tags:
       - employees
@@ -340,11 +383,11 @@ paths:
         "200":
           description: Filter data fetched successfully
           schema:
-            $ref: '#/definitions/models.EmployeeFiltersResponse'
+            $ref: '#/definitions/dto.EmployeeFiltersResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/models.MessageResponse'
+            $ref: '#/definitions/response.MessageResponse'
       summary: Get employee filter options
       tags:
       - employees

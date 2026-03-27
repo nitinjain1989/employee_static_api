@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/api/employees/{id}": {
             "patch": {
-                "description": "Update employee details by ID",
+                "description": "Updates employee details by ID. Supports partial updates. Maximum 3 mobile numbers allowed. Returns conflict if version mismatch (last-write handling).",
                 "consumes": [
                     "application/json"
                 ],
@@ -37,12 +37,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Employee payload",
+                        "description": "Employee update payload (max 3 mobiles allowed)",
                         "name": "employee",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Employee"
+                            "$ref": "#/definitions/dto.UpdateEmployeeRequest"
                         }
                     }
                 ],
@@ -50,19 +50,31 @@ const docTemplate = `{
                     "200": {
                         "description": "Employee updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/dto.EmployeeDetailResponse"
                         }
                     },
                     "400": {
-                        "description": "Missing ID or invalid request body",
+                        "description": "Missing ID, invalid request body, or validation error",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Employee not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.MessageResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict error (e.g., version mismatch)",
+                        "schema": {
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     }
                 }
@@ -125,19 +137,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.EmployeeListResponse"
+                            "$ref": "#/definitions/dto.EmployeeListResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     }
                 }
             },
             "post": {
-                "description": "Create a new employee with the provided details",
+                "description": "Creates a new employee with basic details and up to 3 mobile numbers. Validates required fields before creation.",
                 "consumes": [
                     "application/json"
                 ],
@@ -150,12 +162,12 @@ const docTemplate = `{
                 "summary": "Create a new employee",
                 "parameters": [
                     {
-                        "description": "Employee payload",
+                        "description": "Employee payload (max 3 mobiles allowed)",
                         "name": "employee",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.CreateEmployeeRequest"
+                            "$ref": "#/definitions/dto.CreateEmployeeRequest"
                         }
                     }
                 ],
@@ -163,19 +175,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Employee created successfully",
                         "schema": {
-                            "$ref": "#/definitions/models.EmployeeDetailResponse"
+                            "$ref": "#/definitions/dto.EmployeeDetailResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or validation error",
+                        "description": "Invalid request body, missing name, or too many mobiles",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     }
                 }
@@ -198,13 +210,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Filter data fetched successfully",
                         "schema": {
-                            "$ref": "#/definitions/models.EmployeeFiltersResponse"
+                            "$ref": "#/definitions/dto.EmployeeFiltersResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     }
                 }
@@ -236,19 +248,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.EmployeeDetailResponse"
+                            "$ref": "#/definitions/dto.EmployeeDetailResponse"
                         }
                     },
                     "400": {
                         "description": "Missing or invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     }
                 }
@@ -278,19 +290,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Employee deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Missing employee ID",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/models.MessageResponse"
+                            "$ref": "#/definitions/response.MessageResponse"
                         }
                     }
                 }
@@ -298,7 +310,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.CreateEmployeeRequest": {
+        "dto.CreateEmployeeRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -329,6 +341,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://image.com/profile.jpg"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "joining_date": {
                     "type": "string",
                     "example": "2024-01-01"
@@ -336,7 +351,7 @@ const docTemplate = `{
                 "mobiles": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.MobileRequest"
+                        "$ref": "#/definitions/dto.MobileRequest"
                     }
                 },
                 "name": {
@@ -345,55 +360,11 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Employee": {
-            "type": "object",
-            "required": [
-                "email"
-            ],
-            "properties": {
-                "city": {
-                    "type": "string"
-                },
-                "country": {
-                    "type": "string"
-                },
-                "department": {
-                    "type": "string"
-                },
-                "designation": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "img_url": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "joining_date": {
-                    "type": "string"
-                },
-                "mobiles": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Mobile"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.EmployeeDetailResponse": {
+        "dto.EmployeeDetailResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/models.Employee"
+                    "$ref": "#/definitions/dto.EmployeeResponse"
                 },
                 "message": {
                     "type": "string"
@@ -403,7 +374,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.EmployeeFilters": {
+        "dto.EmployeeFilters": {
             "type": "object",
             "properties": {
                 "departments": {
@@ -421,22 +392,22 @@ const docTemplate = `{
                 "mobile_types": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.FilterOption"
+                        "$ref": "#/definitions/dto.FilterOption"
                     }
                 },
                 "statuses": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.FilterOption"
+                        "$ref": "#/definitions/dto.FilterOption"
                     }
                 }
             }
         },
-        "models.EmployeeFiltersResponse": {
+        "dto.EmployeeFiltersResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/models.EmployeeFilters"
+                    "$ref": "#/definitions/dto.EmployeeFilters"
                 },
                 "message": {
                     "type": "string"
@@ -446,27 +417,78 @@ const docTemplate = `{
                 }
             }
         },
-        "models.EmployeeListResponse": {
+        "dto.EmployeeListResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.Employee"
+                        "$ref": "#/definitions/dto.EmployeeResponse"
                     }
                 },
                 "message": {
                     "type": "string"
                 },
                 "meta": {
-                    "$ref": "#/definitions/models.Meta"
+                    "$ref": "#/definitions/dto.Meta"
                 },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "models.FilterOption": {
+        "dto.EmployeeResponse": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "designation": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "optional: keep or remove",
+                    "type": "string"
+                },
+                "img_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "joining_date": {
+                    "type": "string"
+                },
+                "mobiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MobileResponse"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.FilterOption": {
             "type": "object",
             "properties": {
                 "label": {
@@ -477,18 +499,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.MessageResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Meta": {
+        "dto.Meta": {
             "type": "object",
             "properties": {
                 "has_next_page": {
@@ -505,25 +516,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Mobile": {
-            "type": "object",
-            "properties": {
-                "employee_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "number": {
-                    "type": "string"
-                },
-                "type": {
-                    "description": "home, office, other",
-                    "type": "string"
-                }
-            }
-        },
-        "models.MobileRequest": {
+        "dto.MobileRequest": {
             "type": "object",
             "properties": {
                 "number": {
@@ -533,6 +526,73 @@ const docTemplate = `{
                 "type": {
                     "type": "string",
                     "example": "home"
+                }
+            }
+        },
+        "dto.MobileResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateEmployeeRequest": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "designation": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "img_url": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "joining_date": {
+                    "type": "string"
+                },
+                "mobiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MobileRequest"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "version": {
+                    "description": "🔥 required",
+                    "type": "integer"
+                }
+            }
+        },
+        "response.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         }
