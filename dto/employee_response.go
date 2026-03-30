@@ -20,6 +20,7 @@ type EmployeeResponse struct {
 	UpdatedAt   string           `json:"updated_at"`
 	DeletedAt   string           `json:"deleted_at"`
 	Version     int              `json:"version"`
+	CreatedAt   string           `json:"created_at"`
 	Mobiles     []MobileResponse `json:"mobiles"`
 }
 

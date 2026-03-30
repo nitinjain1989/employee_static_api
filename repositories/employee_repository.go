@@ -163,7 +163,7 @@ func buildDataQueryFixed(
 	query := `
 		SELECT 
 			e.id, e.name, e.email, e.designation, e.department, e.city,
-			e.country, e.img_url, e.is_active, e.joining_date,
+			e.country, e.img_url, e.is_active, e.joining_date,e.created_at,
 			e.version, e.updated_at, e.deleted_at,
 			m.id, m.number, m.type
 		FROM employees e
@@ -255,6 +255,7 @@ func mapEmployees(rows pgx.Rows) ([]dto.EmployeeResponse, error) {
 			joiningDate *time.Time
 			deletedAt   *time.Time
 			updatedAt   time.Time
+			createdAt   time.Time
 		)
 
 		err := rows.Scan(
@@ -268,6 +269,7 @@ func mapEmployees(rows pgx.Rows) ([]dto.EmployeeResponse, error) {
 			&e.ImgURL,
 			&e.IsActive,
 			&joiningDate,
+			&createdAt,
 			&e.Version,
 			&updatedAt,
 			&deletedAt,
@@ -287,6 +289,7 @@ func mapEmployees(rows pgx.Rows) ([]dto.EmployeeResponse, error) {
 			}
 
 			e.UpdatedAt = updatedAt.Format(time.RFC3339)
+			e.CreatedAt = createdAt.Format(time.RFC3339)
 
 			if deletedAt != nil {
 				e.DeletedAt = deletedAt.Format(time.RFC3339)
@@ -735,7 +738,7 @@ func (r *EmployeeRepository) getEmployeeByIDInternal(
 	rows, err := q.Query(ctx, `
 		SELECT 
 			e.id, e.name, e.email, e.designation, e.department, e.city,
-			e.country, e.img_url, e.is_active, e.joining_date,
+			e.country, e.img_url, e.is_active, e.joining_date,e.created_at,
 			e.version, e.updated_at, e.deleted_at,
 			m.id, m.number, m.type
 		FROM employees e
@@ -761,6 +764,7 @@ func (r *EmployeeRepository) getEmployeeByIDInternal(
 			joiningDate *time.Time
 			updatedAt   time.Time
 			deletedAt   *time.Time
+			createdAt   time.Time
 		)
 
 		err := rows.Scan(
@@ -768,6 +772,7 @@ func (r *EmployeeRepository) getEmployeeByIDInternal(
 			&e.Designation, &e.Department, &e.City,
 			&e.Country, &e.ImgURL, &e.IsActive,
 			&joiningDate,
+			&createdAt,
 			&e.Version,
 			&updatedAt,
 			&deletedAt,
@@ -785,6 +790,7 @@ func (r *EmployeeRepository) getEmployeeByIDInternal(
 			}
 
 			e.UpdatedAt = updatedAt.Format(time.RFC3339)
+			e.CreatedAt = createdAt.Format(time.RFC3339)
 
 			if deletedAt != nil {
 				e.DeletedAt = deletedAt.Format(time.RFC3339)

@@ -125,7 +125,7 @@ func (r *SyncRepository) Sync(
 	rows, err := tx.Query(ctx, `
 		SELECT 
 			e.id, e.name, e.email, e.designation, e.department,
-			e.city, e.country, e.img_url, e.is_active, e.joining_date,
+			e.city, e.country, e.img_url, e.is_active, e.joining_date,e.created_at,
 			e.version, e.updated_at, e.deleted_at, e.updated_seq,
 			m.id, m.number, m.type
 		FROM employees e
@@ -189,6 +189,7 @@ func mapEmployeesWithSeq(rows pgx.Rows) ([]dto.EmployeeResponse, int64, int, err
 			joiningDate *time.Time
 			deletedAt   *time.Time
 			updatedAt   time.Time
+			createdAt   time.Time
 			updatedSeq  int64
 		)
 
@@ -203,6 +204,7 @@ func mapEmployeesWithSeq(rows pgx.Rows) ([]dto.EmployeeResponse, int64, int, err
 			&e.ImgURL,
 			&e.IsActive,
 			&joiningDate,
+			&createdAt,
 			&e.Version,
 			&updatedAt,
 			&deletedAt,
@@ -229,7 +231,7 @@ func mapEmployeesWithSeq(rows pgx.Rows) ([]dto.EmployeeResponse, int64, int, err
 			}
 
 			e.UpdatedAt = updatedAt.Format(time.RFC3339)
-
+			e.CreatedAt = createdAt.Format(time.RFC3339)
 			if deletedAt != nil {
 				e.DeletedAt = deletedAt.Format(time.RFC3339)
 			} else {
