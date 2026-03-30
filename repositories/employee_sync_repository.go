@@ -2,7 +2,9 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"static-api/dto"
+	"static-api/utils"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -42,6 +44,14 @@ func (r *SyncRepository) Sync(
 	// =========================
 	for _, e := range req.Employees {
 
+		if e.ID == "" {
+			return nil, dto.Cursor{}, false, fmt.Errorf("employee id cannot be empty")
+		}
+
+		if !utils.IsValidUUID(e.ID) {
+			return nil, dto.Cursor{}, false, fmt.Errorf("invalid employee id: %s", e.ID)
+		}
+
 		var deletedAt *time.Time
 		if e.DeletedAt != nil {
 			now := time.Now().UTC()
@@ -53,9 +63,10 @@ func (r *SyncRepository) Sync(
 			INSERT INTO employees (
 				id, name, designation, department, is_active,
 				img_url, email, city, country, joining_date,
-				version, updated_at, deleted_at
+				version, deleted_at
 			)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),$12)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,1,$11)
+
 			ON CONFLICT (id) DO UPDATE SET
 				name = EXCLUDED.name,
 				designation = EXCLUDED.designation,
@@ -66,54 +77,36 @@ func (r *SyncRepository) Sync(
 				city = EXCLUDED.city,
 				country = EXCLUDED.country,
 				joining_date = EXCLUDED.joining_date,
-				version = EXCLUDED.version,
-				updated_at = NOW(),
-				deleted_at = EXCLUDED.deleted_at
-			WHERE employees.version < EXCLUDED.version;
+				version = employees.version + 1,
+				deleted_at = EXCLUDED.deleted_at;
 		`,
 			e.ID, e.Name, e.Designation, e.Department, e.IsActive,
 			e.ImgURL, e.Email, e.City, e.Country, e.JoiningDate,
-			e.Version, deletedAt,
+			deletedAt,
 		)
 		if err != nil {
 			return nil, dto.Cursor{}, false, err
 		}
 
-		// 🔥 Soft delete old mobiles
+		// 🔥 HARD delete old mobiles
 		_, err = tx.Exec(ctx, `
-			UPDATE mobiles
-			SET deleted_at = NOW(), updated_at = NOW()
+			DELETE FROM mobiles
 			WHERE employee_id = $1;
 		`, e.ID)
 		if err != nil {
 			return nil, dto.Cursor{}, false, err
 		}
 
-		// Insert latest mobiles
+		// Insert latest mobiles (fresh state)
 		for _, m := range e.Mobiles {
-
-			var mDeletedAt *time.Time
-			if m.DeletedAt != nil {
-				now := time.Now().UTC()
-				mDeletedAt = &now
-			}
 
 			_, err := tx.Exec(ctx, `
 				INSERT INTO mobiles (
-					id, employee_id, type, number,
-					version, updated_at, deleted_at
+					employee_id, type, number
 				)
-				VALUES ($1,$2,$3,$4,$5,NOW(),$6)
-				ON CONFLICT (id) DO UPDATE SET
-					type = EXCLUDED.type,
-					number = EXCLUDED.number,
-					version = EXCLUDED.version,
-					updated_at = NOW(),
-					deleted_at = EXCLUDED.deleted_at
-				WHERE mobiles.version < EXCLUDED.version;
+				VALUES ($1,$2,$3);
 			`,
-				m.ID, e.ID, m.Type, m.Number,
-				m.Version, mDeletedAt,
+				e.ID, m.Type, m.Number,
 			)
 			if err != nil {
 				return nil, dto.Cursor{}, false, err

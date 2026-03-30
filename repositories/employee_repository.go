@@ -494,7 +494,13 @@ func (r *EmployeeRepository) CreateEmployeeWithMobiles(
 
 	err := r.withTx(ctx, func(tx pgx.Tx) error {
 
-		var empID string
+		if emp.ID == "" {
+			return fmt.Errorf("employee id cannot be empty")
+		}
+
+		if !utils.IsValidUUID(emp.ID) {
+			return fmt.Errorf("invalid employee id: %s", emp.ID)
+		}
 
 		// ✅ Convert JoiningDate (string → time.Time)
 		var joiningDate *time.Time
@@ -507,14 +513,24 @@ func (r *EmployeeRepository) CreateEmployeeWithMobiles(
 		}
 
 		// ✅ Insert full employee
-		err := tx.QueryRow(ctx, `
+		_, err := tx.Exec(ctx, `
 			INSERT INTO employees (
-				name, email, designation, department,
+				id, name, email, designation, department,
 				city, country, img_url, is_active, joining_date
 			)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-			RETURNING id
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+			ON CONFLICT (id) DO UPDATE SET
+				name = EXCLUDED.name,
+				email = EXCLUDED.email,
+				designation = EXCLUDED.designation,
+				department = EXCLUDED.department,
+				city = EXCLUDED.city,
+				country = EXCLUDED.country,
+				img_url = EXCLUDED.img_url,
+				is_active = EXCLUDED.is_active,
+				joining_date = EXCLUDED.joining_date;
 		`,
+			emp.ID,
 			emp.Name,
 			emp.Email,
 			emp.Designation,
@@ -524,7 +540,7 @@ func (r *EmployeeRepository) CreateEmployeeWithMobiles(
 			emp.ImgURL,
 			emp.IsActive,
 			joiningDate, // ✅ proper type
-		).Scan(&empID)
+		)
 
 		if err != nil {
 			return err
@@ -536,7 +552,7 @@ func (r *EmployeeRepository) CreateEmployeeWithMobiles(
 				INSERT INTO mobiles (employee_id, number, type)
 				VALUES ($1, $2, $3)
 			`,
-				empID,
+				emp.ID,
 				m.Number,
 				m.Type,
 			)
@@ -546,7 +562,7 @@ func (r *EmployeeRepository) CreateEmployeeWithMobiles(
 			}
 		}
 
-		res, err := r.getEmployeeByIDTx(ctx, tx, empID)
+		res, err := r.getEmployeeByIDTx(ctx, tx, emp.ID)
 		if err != nil {
 			return err
 		}

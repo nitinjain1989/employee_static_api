@@ -17,17 +17,14 @@ func (c SyncRequest) IsEmpty() bool {
 }
 
 type Mobile struct {
-	ID         string     `json:"id"`
-	EmployeeID string     `json:"employee_id"`
-	Type       string     `json:"type"`
-	Number     string     `json:"number"`
-	Version    int        `json:"version"`
-	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
-	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
+	ID         string `json:"id"`
+	EmployeeID string `json:"employee_id"`
+	Type       string `json:"type"`
+	Number     string `json:"number"`
 }
 
 type Employee struct {
-	ID          string     `json:"id"`
+	ID          string     `json:"id,omitempty"`
 	Name        string     `json:"name"`
 	Designation string     `json:"designation"`
 	Department  string     `json:"department"`

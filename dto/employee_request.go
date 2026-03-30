@@ -6,6 +6,7 @@ type MobileRequest struct {
 }
 
 type CreateEmployeeRequest struct {
+	ID          string          `json:"id"`
 	Name        string          `json:"name" binding:"required" example:"Nitin Jain"`
 	Email       string          `json:"email" binding:"required,email" example:"nitin@test.com"`
 	Designation string          `json:"designation" example:"iOS Engineer"`
