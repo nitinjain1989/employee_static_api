@@ -5,6 +5,7 @@ import (
 	"static-api/dto"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,7 +17,10 @@ func NewSyncRepository(db *pgxpool.Pool) *SyncRepository {
 	return &SyncRepository{db: db}
 }
 
-func (r *SyncRepository) Sync(ctx context.Context, req dto.SyncRequest) ([]dto.Employee, dto.Cursor, bool, error) {
+func (r *SyncRepository) Sync(
+	ctx context.Context,
+	req dto.SyncRequest,
+) ([]dto.EmployeeResponse, dto.Cursor, bool, error) {
 
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -24,28 +28,18 @@ func (r *SyncRepository) Sync(ctx context.Context, req dto.SyncRequest) ([]dto.E
 	}
 	defer tx.Rollback(ctx)
 
-	var cursorTime *time.Time
-	var cursorID *string
+	// =========================
+	// 🔐 CURSOR HANDLING (SAFE)
+	// =========================
 
+	var cursorSeq int64
 	if req.Cursor != nil {
-
-		if req.Cursor.CursorTime != "" {
-			t, err := time.Parse(time.RFC3339, req.Cursor.CursorTime)
-			if err != nil {
-				return nil, dto.Cursor{}, false, err
-			}
-			cursorTime = &t
-		}
-
-		if req.Cursor.CursorID != "" {
-			cursorID = &req.Cursor.CursorID
-		}
+		cursorSeq = req.Cursor.Seq
 	}
 
 	// =========================
-	// 1. PUSH (Employees + Mobiles)
+	// 1. PUSH (UPSERT)
 	// =========================
-
 	for _, e := range req.Employees {
 
 		var deletedAt *time.Time
@@ -54,49 +48,48 @@ func (r *SyncRepository) Sync(ctx context.Context, req dto.SyncRequest) ([]dto.E
 			deletedAt = &now
 		}
 
-		// Employee upsert
+		// Employee UPSERT (last write wins)
 		_, err := tx.Exec(ctx, `
-		INSERT INTO employees (
-			id, name, designation, department, is_active,
-			img_url, email, city, country, joining_date,
-			version, updated_at, deleted_at
-		)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),$12)
-		ON CONFLICT (id) DO UPDATE SET
-			name = EXCLUDED.name,
-			designation = EXCLUDED.designation,
-			department = EXCLUDED.department,
-			is_active = EXCLUDED.is_active,
-			img_url = EXCLUDED.img_url,
-			email = EXCLUDED.email,
-			city = EXCLUDED.city,
-			country = EXCLUDED.country,
-			joining_date = EXCLUDED.joining_date,
-			version = EXCLUDED.version,
-			updated_at = NOW(),
-			deleted_at = EXCLUDED.deleted_at
-		WHERE employees.version < EXCLUDED.version;
+			INSERT INTO employees (
+				id, name, designation, department, is_active,
+				img_url, email, city, country, joining_date,
+				version, updated_at, deleted_at
+			)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),$12)
+			ON CONFLICT (id) DO UPDATE SET
+				name = EXCLUDED.name,
+				designation = EXCLUDED.designation,
+				department = EXCLUDED.department,
+				is_active = EXCLUDED.is_active,
+				img_url = EXCLUDED.img_url,
+				email = EXCLUDED.email,
+				city = EXCLUDED.city,
+				country = EXCLUDED.country,
+				joining_date = EXCLUDED.joining_date,
+				version = EXCLUDED.version,
+				updated_at = NOW(),
+				deleted_at = EXCLUDED.deleted_at
+			WHERE employees.version < EXCLUDED.version;
 		`,
 			e.ID, e.Name, e.Designation, e.Department, e.IsActive,
 			e.ImgURL, e.Email, e.City, e.Country, e.JoiningDate,
 			e.Version, deletedAt,
 		)
-
 		if err != nil {
 			return nil, dto.Cursor{}, false, err
 		}
 
-		// 🔥 Replace mobiles safely
+		// 🔥 Soft delete old mobiles
 		_, err = tx.Exec(ctx, `
 			UPDATE mobiles
 			SET deleted_at = NOW(), updated_at = NOW()
 			WHERE employee_id = $1;
 		`, e.ID)
-
 		if err != nil {
 			return nil, dto.Cursor{}, false, err
 		}
 
+		// Insert latest mobiles
 		for _, m := range e.Mobiles {
 
 			var mDeletedAt *time.Time
@@ -106,23 +99,22 @@ func (r *SyncRepository) Sync(ctx context.Context, req dto.SyncRequest) ([]dto.E
 			}
 
 			_, err := tx.Exec(ctx, `
-			INSERT INTO mobiles (
-				id, employee_id, type, number,
-				version, updated_at, deleted_at
-			)
-			VALUES ($1,$2,$3,$4,$5,NOW(),$6)
-			ON CONFLICT (id) DO UPDATE SET
-				type = EXCLUDED.type,
-				number = EXCLUDED.number,
-				version = EXCLUDED.version,
-				updated_at = NOW(),
-				deleted_at = NULL
-			WHERE mobiles.version < EXCLUDED.version;
+				INSERT INTO mobiles (
+					id, employee_id, type, number,
+					version, updated_at, deleted_at
+				)
+				VALUES ($1,$2,$3,$4,$5,NOW(),$6)
+				ON CONFLICT (id) DO UPDATE SET
+					type = EXCLUDED.type,
+					number = EXCLUDED.number,
+					version = EXCLUDED.version,
+					updated_at = NOW(),
+					deleted_at = EXCLUDED.deleted_at
+				WHERE mobiles.version < EXCLUDED.version;
 			`,
 				m.ID, e.ID, m.Type, m.Number,
 				m.Version, mDeletedAt,
 			)
-
 			if err != nil {
 				return nil, dto.Cursor{}, false, err
 			}
@@ -130,78 +122,143 @@ func (r *SyncRepository) Sync(ctx context.Context, req dto.SyncRequest) ([]dto.E
 	}
 
 	// =========================
-	// 2. PULL (Employees + Mobiles)
+	// 2. PULL (CORRECT PAGINATION)
 	// =========================
 
-	if req.Limit == 0 {
+	if req.Limit <= 0 {
 		req.Limit = 50
 	}
 
 	rows, err := tx.Query(ctx, `
-	SELECT id, name, designation, department, is_active,
-	       img_url, email, city, country, joining_date,
-	       version, updated_at, deleted_at
-	FROM employees
-	WHERE 
-		($1 IS NULL 
-		OR updated_at > $1 
-		OR (updated_at = $1 AND id > $2))
-	ORDER BY updated_at, id
-	LIMIT $3;
-	`, cursorTime, cursorID, req.Limit+1)
+		SELECT 
+			e.id, e.name, e.email, e.designation, e.department,
+			e.city, e.country, e.img_url, e.is_active, e.joining_date,
+			e.version, e.updated_at, e.deleted_at, e.updated_seq,
+			m.id, m.number, m.type
+		FROM employees e
+		LEFT JOIN mobiles m ON m.employee_id = e.id
+		WHERE e.updated_seq > $1
+		ORDER BY e.updated_seq ASC
+		LIMIT $2;
+	`, cursorSeq, req.Limit+1)
 
 	if err != nil {
 		return nil, dto.Cursor{}, false, err
 	}
 	defer rows.Close()
 
-	var employees []dto.Employee
+	employees, lastSeq, count, err := mapEmployeesWithSeq(rows)
+	if err != nil {
+		return nil, dto.Cursor{}, false, err
+	}
 
-	for rows.Next() {
-		var e dto.Employee
-		err := rows.Scan(
-			&e.ID, &e.Name, &e.Designation, &e.Department,
-			&e.IsActive, &e.ImgURL, &e.Email,
-			&e.City, &e.Country, &e.JoiningDate,
-			&e.Version, &e.UpdatedAt, &e.DeletedAt,
-		)
-		if err != nil {
+	if count == 0 {
+		if err := tx.Commit(ctx); err != nil {
 			return nil, dto.Cursor{}, false, err
 		}
 
-		// fetch mobiles
-		mRows, _ := tx.Query(ctx, `
-			SELECT id, employee_id, type, number, version, updated_at, deleted_at
-			FROM mobiles WHERE employee_id=$1;
-		`, e.ID)
-
-		for mRows.Next() {
-			var m dto.Mobile
-			mRows.Scan(&m.ID, &m.EmployeeID, &m.Type, &m.Number,
-				&m.Version, &m.UpdatedAt, &m.DeletedAt)
-			e.Mobiles = append(e.Mobiles, m)
-		}
-
-		employees = append(employees, e)
+		return []dto.EmployeeResponse{}, dto.Cursor{
+			Seq: cursorSeq, // 🔥 FIX
+		}, false, nil
 	}
 
-	hasMore := len(employees) > req.Limit
-	if hasMore {
-		employees = employees[:req.Limit]
+	hasMore := count > req.Limit
+
+	nextCursor := dto.Cursor{
+		Seq: lastSeq,
 	}
 
-	var nextCursor dto.Cursor
-	if len(employees) > 0 {
-		last := employees[len(employees)-1]
-		nextCursor = dto.Cursor{
-			CursorTime: last.UpdatedAt.Format(time.RFC3339),
-			CursorID:   last.ID,
-		}
-	}
-
+	// =========================
+	// COMMIT
+	// =========================
 	if err := tx.Commit(ctx); err != nil {
 		return nil, dto.Cursor{}, false, err
 	}
 
 	return employees, nextCursor, hasMore, nil
+}
+
+func mapEmployeesWithSeq(rows pgx.Rows) ([]dto.EmployeeResponse, int64, int, error) {
+
+	empMap := make(map[string]*dto.EmployeeResponse)
+	var lastSeq int64
+	count := 0
+
+	for rows.Next() {
+
+		var (
+			e dto.EmployeeResponse
+			m dto.MobileResponse
+
+			mobileID    *string
+			mobileNum   *string
+			mobileType  *string
+			joiningDate *time.Time
+			deletedAt   *time.Time
+			updatedAt   time.Time
+			updatedSeq  int64
+		)
+
+		err := rows.Scan(
+			&e.ID,
+			&e.Name,
+			&e.Email,
+			&e.Designation,
+			&e.Department,
+			&e.City,
+			&e.Country,
+			&e.ImgURL,
+			&e.IsActive,
+			&joiningDate,
+			&e.Version,
+			&updatedAt,
+			&deletedAt,
+			&updatedSeq,
+			&mobileID,
+			&mobileNum,
+			&mobileType,
+		)
+
+		if err != nil {
+			return nil, 0, 0, err
+		}
+
+		lastSeq = updatedSeq
+		count++
+
+		_, exists := empMap[e.ID]
+		if !exists {
+
+			e.Mobiles = []dto.MobileResponse{}
+
+			if joiningDate != nil {
+				e.JoiningDate = joiningDate.Format("2006-01-02")
+			}
+
+			e.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+			if deletedAt != nil {
+				e.DeletedAt = deletedAt.Format(time.RFC3339)
+			} else {
+				e.DeletedAt = ""
+			}
+
+			empMap[e.ID] = &e
+		}
+
+		if mobileID != nil {
+			m.ID = *mobileID
+			m.Number = *mobileNum
+			m.Type = *mobileType
+			empMap[e.ID].Mobiles = append(empMap[e.ID].Mobiles, m)
+		}
+	}
+
+	// convert map → slice
+	result := make([]dto.EmployeeResponse, 0, len(empMap))
+	for _, v := range empMap {
+		result = append(result, *v)
+	}
+
+	return result, lastSeq, count, nil
 }

@@ -9,8 +9,7 @@ type SyncRequest struct {
 }
 
 type Cursor struct {
-	CursorTime string `json:"cursor_time,omitempty"`
-	CursorID   string `json:"cursor_id,omitempty"`
+	Seq int64 `json:"seq"`
 }
 
 func (c SyncRequest) IsEmpty() bool {

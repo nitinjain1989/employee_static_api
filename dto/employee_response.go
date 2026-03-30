@@ -31,10 +31,11 @@ type EmployeeListResponse struct {
 }
 
 type Meta struct {
-	TotalCount  int  `json:"total_count"`
-	Page        int  `json:"page"`
-	PageSize    int  `json:"page_size"`
-	HasNextPage bool `json:"has_next_page"`
+	TotalCount       int   `json:"total_count"`
+	Page             int   `json:"page"`
+	PageSize         int   `json:"page_size"`
+	HasNextPage      bool  `json:"has_next_page"`
+	LatestUpdatedSeq int64 `json:"latest_updated_seq"`
 }
 
 type EmployeeDetailResponse struct {

@@ -86,7 +86,19 @@ func (r *EmployeeRepository) FetchEmployees(
 		return nil, dto.Meta{}, err
 	}
 
+	var latestSeq int64
+
+	err = r.PgDB.QueryRow(ctx, `
+		SELECT COALESCE(MAX(updated_seq), 0)
+		FROM employees;
+	`).Scan(&latestSeq)
+
+	if err != nil {
+		return nil, dto.Meta{}, err
+	}
+
 	meta := buildMeta(totalCount, paginate, limit, offset)
+	meta.LatestUpdatedSeq = latestSeq
 	return employees, meta, nil
 }
 
