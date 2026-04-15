@@ -112,6 +112,7 @@ func buildEmployeeIDQuery(
 		SELECT e.id
 		FROM employees e
 		WHERE 1=1
+		AND e.deleted_at IS NULL
 	`
 
 	var args []interface{}
@@ -169,6 +170,7 @@ func buildDataQueryFixed(
 		FROM employees e
 		LEFT JOIN mobiles m ON m.employee_id = e.id
 		WHERE 1=1
+		AND e.deleted_at IS NULL
 	`
 
 	var args []interface{}
